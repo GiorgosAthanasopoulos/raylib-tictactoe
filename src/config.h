@@ -8,6 +8,7 @@
 #define TARGET_FPS 60
 #define BOARD_SIZE_AXIS 3
 #define WINNER_SIZE_AXIS 3
+#define HINT_TIME 3.0f
 
 // == STRING SETTINGS ==
 #define WINDOW_TITLE "Tic Tac Toe"
@@ -21,3 +22,4 @@
 #define COLOR_BOARD_TILE WHITE
 #define COLOR_FG BLACK
 #define COLOR_TEXT_FG WHITE
+#define HINT_TILE_COLOR GREEN

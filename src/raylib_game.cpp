@@ -6,8 +6,6 @@
 #include "types.h"
 #include "utils.h"
 
-// FIX: character rendering for board
-
 void Update(TicTacToe *game) {
   game->w = GetRenderWidth();
   game->h = GetRenderHeight();
@@ -17,7 +15,9 @@ void Update(TicTacToe *game) {
   game->h2FontSize = game->w / 15;
 
   if (game->winner != ' ') {
-    if (IsKeyPressed(RESTART_KEY)) {
+    if (game->hintTimer > 0) {
+      game->hintTimer -= GetFrameTime();
+    } else if (IsKeyPressed(RESTART_KEY)) {
       ResetGame(game);
     }
   } else {
@@ -40,7 +40,7 @@ void Update(TicTacToe *game) {
             game->board[index] = game->turn;
 
             game->turn = game->turn == 'X' ? 'O' : 'X';
-            CheckWinner(game->board, &game->winner);
+            game->hints = CheckWinner(game->board, &game->winner);
             if (game->winner == 'X') {
               game->scoreX++;
             } else if (game->winner == 'O') {
@@ -58,35 +58,35 @@ void Draw(TicTacToe *game) {
 
   ClearBackground(COLOR_WINDOW_BG);
 
-  if (game->winner == ' ') {
+  if (game->winner == ' ' || game->hintTimer > 0) {
     // draw board
     int tileW = game->w / BOARD_SIZE_AXIS - game->boardLineThickness;
     int tileH = (game->h - game->hudYOffset) / BOARD_SIZE_AXIS -
                 game->boardLineThickness;
 
-    int centerY = game->hudYOffset/2-game->h2FontSize/2;
-    const char *turn = game->turn == 'X' ? "Turn: X" : "Turn: O";
-    int fontSize = AssertTextFitsInDimensions(turn, game->h2FontSize,
-            tileW, tileH);
-    int turnW = MeasureText(turn, fontSize);
-    DrawText(turn, game->boardLineThickness/2 + tileW / 2 - turnW / 2,
-            game->hudYOffset/2-fontSize/2, fontSize, COLOR_TEXT_FG);
-
-    char *scoreX = (char*)malloc(sizeof(char)*10);
+    int centerY = game->hudYOffset / 2 - game->h2FontSize / 2;
+    char *scoreX = (char *)malloc(sizeof(char) * 10);
     sprintf(scoreX, "Score X: %d", game->scoreX);
-    fontSize = AssertTextFitsInDimensions(scoreX, game->h2FontSize,
-            tileW, tileH);
+    int fontSize =
+        AssertTextFitsInDimensions(scoreX, game->h2FontSize, tileW, tileH);
     int scoreXW = MeasureText(scoreX, fontSize);
-    DrawText(scoreX, tileW + game->boardLineThickness + tileW / 2 - scoreXW / 2, centerY,
-             fontSize, COLOR_TEXT_FG);
+    DrawText(scoreX, tileW + game->boardLineThickness + tileW / 2 - scoreXW / 2,
+             centerY, fontSize, COLOR_TEXT_FG);
 
-    char *scoreO = (char*)malloc(sizeof(char)*10);
+    char *scoreO = (char *)malloc(sizeof(char) * 10);
     sprintf(scoreO, "Score O: %d", game->scoreO);
-    fontSize = AssertTextFitsInDimensions(scoreO, game->h2FontSize,
-            tileW, tileH);
+    int fontSize2 =
+        AssertTextFitsInDimensions(scoreO, game->h2FontSize, tileW, tileH);
     int scoreOW = MeasureText(scoreO, fontSize);
-    DrawText(scoreO, 2 * tileW + 2 * game->boardLineThickness + tileW / 2 - scoreOW / 2, centerY,
-            fontSize, COLOR_TEXT_FG);
+    DrawText(scoreO,
+             2 * tileW + 2 * game->boardLineThickness + tileW / 2 - scoreOW / 2,
+             centerY, fontSize, COLOR_TEXT_FG);
+
+    const char *turn = game->turn == 'X' ? "Turn: X" : "Turn: O";
+    fontSize = fontSize < fontSize2 ? fontSize : fontSize2;
+    int turnW = MeasureText(turn, fontSize);
+    DrawText(turn, game->boardLineThickness / 2 + tileW / 2 - turnW / 2,
+             game->hudYOffset / 2 - fontSize / 2, fontSize, COLOR_TEXT_FG);
 
     free(scoreX);
     free(scoreO);
@@ -100,21 +100,27 @@ void Draw(TicTacToe *game) {
         int tileY = y * tileH + y * game->boardLineThickness + game->hudYOffset;
 
         // draw tile
-        DrawRectangle(tileX, tileY, tileW, tileH, COLOR_BOARD_TILE);
+        Color color = COLOR_BOARD_TILE;
+        if (ToHintTile(game->hints, index)) {
+          color = HINT_TILE_COLOR;
+        }
+        DrawRectangle(tileX, tileY, tileW, tileH, color);
 
         // if needed, draw character
         if (game->board[index] != ' ') {
-            const char *text = &game->board[index];
+          const char *text = game->board[index] == 'X' ? "X" : "O";
           int charW = MeasureText(text, game->h1FontSize);
           int charX = tileX + tileW / 2 - charW / 2;
           int charY = tileY + tileH / 2 - game->h1FontSize / 2;
-          DrawText(text, charX, charY, game->h1FontSize,
-                   COLOR_FG);
+          int charH = game->h1FontSize;
+          DrawText(text, charX, charY, charH, COLOR_FG);
         }
       }
     }
   } else {
-    const char *text = game->winner == 'X' ? "Winner: X" : game->winner == 'O' ? "Winner: O" : "Winner: DRAW";
+    const char *text = game->winner == 'X'   ? "Winner: X"
+                       : game->winner == 'O' ? "Winner: O"
+                                             : "Winner: DRAW";
     int textW = MeasureText(text, game->h2FontSize);
     DrawText(text, game->w / 2 - textW / 2, game->h / 2 - game->h2FontSize / 2,
              game->h2FontSize, COLOR_TEXT_FG);
@@ -128,6 +134,7 @@ int main() {
   game.w = DEFAULT_WINDOW_WIDTH, game.h = DEFAULT_WINDOW_HEIGHT;
   game.turn = 'X', game.winner = ' ';
   game.scoreX = 0, game.scoreO = 0;
+  game.hintTimer = HINT_TIME;
   for (int i = 0; i < sizeof(game.board) / sizeof(char); ++i) {
     game.board[i] = ' ';
   }

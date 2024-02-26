@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 
 #Install dependencies
-sudo apt install build-essential
-sudo apt install libasound2-dev libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev libglu1-mesa-dev libxcursor-dev libxinerama-dev
+sudo apt install git # in case you downloaded zip from github and dont have git installed
+sudo apt install build-essential # gcc make etc.
+sudo apt install libasound2-dev libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev libglu1-mesa-dev libxcursor-dev libxinerama-dev # raylib deps
 
 #Clone and build raylib
 git clone https://github.com/raysan5/raylib.git raylib
@@ -13,5 +14,5 @@ cd ../../
 rm -rf raylib
 
 #Clone and run game
-g++ nobuild.c -o nobuild
+cc nobuild.c -o nobuild
 ./nobuild
